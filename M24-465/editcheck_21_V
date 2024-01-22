@@ -1,0 +1,44 @@
+    prim_df = be_df.copy()
+    rel_df = be_df.copy()
+    payload_records = []
+    if prim_df.shape[0] > 0 and rel_df.shape[0] > 0:
+        args_dict = {
+            'p_form_ls': [],
+            'p_visit_ls': [],
+            's_form_ls': [],
+            's_visit_ls': [],
+            'p_bedtc': 'BEDTC',
+            's_bestdtc': 'BESTDTC',
+            'notequl_op': '!=',
+        }
+        p_form_ls = args_dict['p_form_ls']
+        p_visit_ls = args_dict['p_visit_ls']
+        s_form_ls = args_dict['s_form_ls']
+        s_visit_ls = args_dict['s_visit_ls']
+        p_bedtc, s_bestdtc = args_dict['p_bedtc'], args_dict['s_bestdtc']
+        notequl_op = args_dict['notequl_op']
+        prim_df = udf_glbl_filter_by_form_visit(prim_df,p_form_ls,p_visit_ls)
+        rel_df = udf_glbl_filter_by_form_visit(rel_df,s_form_ls,s_visit_ls)
+        if len(prim_df)>0 and len(rel_df)>0:
+            p_flag, prim_df = udf_glbl_null_check(prim_df, p_bedtc, notequl_op)
+            r_flag, rel_df = udf_glbl_null_check(rel_df, s_bestdtc, notequl_op)
+            if (p_flag and len(prim_df) > 0) and (r_flag and len(rel_df) > 0):
+                rel_df['s_bestdtc2'] = rel_df[s_bestdtc].str.upper().values[0]
+                for prim_ind in range(prim_df.shape[0]):
+                    prim_rec = prim_df.iloc[[prim_ind]]
+                    p_bedtc2 = prim_rec[p_bedtc].str.upper().values[0]
+                    new_rel_flag, new_rel = udf_glbl_comparison_check(rel_df, 's_bestdtc2', p_bedtc2, notequl_op)
+                    if new_rel_flag and len(new_rel) > 0:
+                        ck_event = []
+                        new_rel_df = new_rel.sort_values(['SPID'], ascending=True)
+                        ck_event.append(int(new_rel_df['ck_event_id'].values[0]))              
+                        payload = {
+                            "query_text":query_text,
+                            "form_index": str(prim_rec['form_index'].values[0]),
+                            "modif_dts": str(pd.to_datetime(prim_rec['modif_dts'].values[0])),
+                            "stg_ck_event_id": int(prim_rec['ck_event_id']),
+                            "relational_ck_event_ids": ck_event,
+                            "confid_score": 1,
+                        }
+                        payload_records.append(payload)
+    return payload_records
