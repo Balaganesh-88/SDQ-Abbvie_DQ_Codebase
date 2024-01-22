@@ -1,0 +1,51 @@
+"""
+Rule Name: rulefn_editcheck_201_V
+Domains: eg_v_df,dm_v_df
+"""
+
+def rulefn_editcheck_201_V(query_text, eg_v_df,dm_v_df):
+    ayload_records = []
+    prim_df, rel_df = EG_V.copy(), DM_V.copy()
+    if len(prim_df) > 0 and len(rel_df) > 0:
+        args_dict = {
+            'prim_form_ls': ['EG_F'],
+            'prim_visit_ls': ['Screening','Initial Confinement Day -1','Premature Discontinuation','Unscheduled','DAy71(±3 days)'],
+            'scnd_form_ls': [],
+            'scnd_visit_ls': [],
+        }
+        prim_form_ls, prim_visit_ls = args_dict['prim_form_ls'], args_dict['prim_visit_ls']
+        scnd_form_ls, scnd_visit_ls = args_dict['scnd_form_ls'], args_dict['scnd_visit_ls']
+        prim_df = udf_glbl_filter_by_formid_visitid(prim_df, prim_form_ls, prim_visit_ls)
+        rel_df = udf_glbl_filter_by_formid_visitid(rel_df, scnd_form_ls, scnd_visit_ls)
+        if len(prim_df) > 0 and len(rel_df) > 0:
+            _,rel_df1 = udf_glbl_m_f_check(rel_df, 'SEX', 'M', '==')
+            _,rel_df2 = udf_glbl_m_f_check(rel_df, 'SEX', 'F', '==')
+            if len(prim_df) > 0 and (len(rel_df1)> 0 or len(rel_df2)>0):
+                for prim_ind in range(prim_df.shape[0]):
+                    prim_rec = prim_df.iloc[[prim_ind]]
+                    new_rel1 = prim_rec[prim_rec['V_QTCF'] > 430]
+                    new_rel2 = prim_rec[prim_rec['V_QTCF'] > 450]
+                    flag = False
+                    ck_event = []                   
+                    if len(new_rel1)>0 and len(rel_df1)>0:
+                        new_prim = new_rel1
+                        flag = True
+                        new_rel_df = rel_df1.sort_values(['SPID'], ascending=True)
+                        ck_event.append(int(new_rel_df['ck_event_id'].values[0]))
+                    elif len(new_rel2)>0 and len(rel_df2)>0:
+                        new_prim = new_rel2
+                        flag = True
+                        new_rel_df = rel_df2.sort_values(['SPID'], ascending=True)
+                        ck_event.append(int(new_rel_df['ck_event_id'].values[0]))
+                    if flag:
+                        payload = {
+                            "query_text": query_text,  # Update the query text here
+                            "form_index": str(new_prim['form_index'].values[0]),
+                            "modif_dts": str(pd.to_datetime(new_prim['modif_dts'].values[0])),
+                            "stg_ck_event_id": int(new_prim['ck_event_id']),
+                            "relational_ck_event_ids": ck_event,
+                            "confid_score": 1,
+                        }
+                        payload_records.append(payload)
+    return payload_records
+
