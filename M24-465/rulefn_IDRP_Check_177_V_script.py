@@ -4,13 +4,13 @@ Domains: lb_local_df
 logic: LBCAT = CHEMISTRY and LBDTC <> Null and LBTESTCD <> Null  and LBORRES <> Null and LBNRIND = NULL. Query should fire.
 """
 
-def rulefn_IDRP_Check_177_V(query_text, lb_local_df):
+def rulefn_IDRP_Check_177_V(query_text, LB_LOCAL_V):
     payload_records = []
-    prim_df = lb_local_df
+    prim_df = LB_LOCAL_V
     if prim_df.shape[0] > 0:
         args_dict = {
-            'p_form_ls': ['LB_A_CH3_F'],
-            'p_visit_ls': [],
+            'p_form_ls': ['LB_A_CH4_F'],
+            'p_visit_ls': ['ev_SAE'],
             'logic_text': " (LBCAT.str.upper() == 'CHEMISTRY') and (LBDTC not in @null_values) and (LBTESTCD  not in @null_values) and (LBORRES  not in @null_values) and(LBNRIND.isna() or LBNRIND in @null_values)",
             'null_values': ['null', 'Null', 'NULL', 'NaN', '', ' ', 'None', 'NaT', 'np.nan', 'nan', None, np.nan],
             'refid_flag': False,

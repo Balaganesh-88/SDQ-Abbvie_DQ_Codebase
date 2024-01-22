@@ -1,16 +1,16 @@
 """
 Rule Name: rulefn_IDRP_Check_166_V
 Domains: lb_local_df
-LOGIC:  LBCAT = CHEMISTRY and LBDTC <> Null and LBTESTCD <> Null  and LBORRES = Null Query should fire.
+LOGIC:  LBCAT = URINALYSIS and LBDTC <> Null and LBTESTCD <> Null  and LBORRES = Null Query should fire.
 """
 
-def rulefn_IDRP_Check_166_V(query_text, lb_local_df):
+def rulefn_IDRP_Check_166_V(query_text, LB_LOCAL):
     payload_records = []
-    prim_df = lb_local_df
+    prim_df = LB_LOCAL
     if prim_df.shape[0] > 0:
         args_dict = {
-            'p_form_ls': ['LB_A_CH4_F'],
-            'p_visit_ls': [],
+            'p_form_ls': ['LB_A_UR2_F'],
+            'p_visit_ls': ['ev_SAE'],
             'logic_text': " (LBCAT.str.upper() == 'URINALYSIS') and (LBDTC not in @null_values) and (LBTESTCD  not in @null_values) and (LBORRES.isna() or LBORRES in @null_values)",
             'null_values': ['null', 'Null', 'NULL', 'NaN', '', ' ', 'None', 'NaT', 'np.nan', 'nan', None, np.nan],
             'refid_flag': False,
