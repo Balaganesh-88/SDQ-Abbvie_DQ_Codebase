@@ -1,0 +1,70 @@
+"""
+Rule Name: rulefn_editcheck_218_V
+Domains: dov_df,dm_v_df,lb_v_df
+"""
+
+def rulefn_editcheck_218_V(query_text, dov_df,dm_v_df,lb_v_df):
+    payload_records = []
+    prim_df = DOV.copy()
+    rel_df1 = DM_V.copy()
+    rel_df2 = LB_V.copy()
+
+    if prim_df.shape[0] > 0 and rel_df.shape[0] > 0 and len(rel_df1) > 0:
+        args_dict = {
+            'prim_form_ls': ['DOV'],
+            'prim_visit_ls': ['Screening','Initial Confinement (Day -1)','Day 7','Day 22','Day 71','PD'],
+            'thrd_form_ls': [],
+            'thrd_visit_ls': [],
+            'four_form_ls': [],
+            'four_visit_ls': [],
+            'prim_vable': 'DCMDATE',
+            'thrd_vable': 'RACE',
+            'not_equl_op': '!=',
+            'equl_op': '==',
+            'logic_text': "(CHINESE in @null_values)",
+            'null_values': ['CRACE1', 'CRACE2', 'CRACE3', 'CRACE4', 'CRACE5'],
+        }
+        # primary and seconondary form and visit filters
+        prim_form_ls, prim_visit_ls = args_dict['prim_form_ls'], args_dict['prim_visit_ls']
+        thrd_form_ls, thrd_visit_ls = args_dict['thrd_form_ls'], args_dict['thrd_visit_ls']
+        four_form_ls, four_visit_ls = args_dict['four_form_ls'], args_dict['four_visit_ls']
+        # primary and seconondary variables and values
+        prim_var1 = args_dict['prim_vable']
+        thrd_var1 = args_dict['thrd_vable']
+        equl_op = args_dict['equl_op']
+        not_equl_op = args_dict['not_equl_op']
+        null_values = args_dict['null_values']
+        logic_query = args_dict['logic_text']
+
+        prim_df = udf_glbl_filter_by_formid_visitid(prim_df, prim_form_ls, prim_visit_ls)
+        rel_df1 = udf_glbl_filter_by_formid_visitid(rel_df1, thrd_form_ls, thrd_visit_ls)
+        if len(rel_df2)>0:
+            rel_df2 = udf_glbl_filter_by_formid_visitid(rel_df2, four_form_ls, four_visit_ls)
+        if len(prim_df) > 0 and len(rel_df1) > 0:
+            p_flag, prim_df = udf_glbl_null_check(prim_df, prim_var1, not_equl_op)
+            rel_df1 = rel_df1[rel_df1['RACE'].str.upper() == 'ASIAN']
+            rel_df1 = rel_df1.query(logic_query)
+            if len(rel_df1) > 0 and len(prim_df) > 0 and len(rel_df) > 0:
+                prim_df = prim_df.sort_values(by='SPID', ascending=True).drop_duplicates(subset=['visit_id', prim_var1], keep='first').sort_index().reset_index(drop=True)
+                rel_df = rel_df.sort_values(by='SPID', ascending=True)
+                rel_df1 = rel_df1.sort_values(by='SPID', ascending=True)
+                if len(rel_df2) > 0:
+                    rel_df2 = rel_df2[rel_df2['LBCAT'].str.upper() == 'URINALYSIS']
+
+                for prim_ind in range(prim_df.shape[0]):
+                    prim_rec = prim_df.iloc[[prim_ind]]
+                    flag = False
+                    if len(rel_df2) == 0:
+                        flag = True
+
+                    if flag:
+                        payload = {
+                            "query_text": query_text,  # Update the query text here
+                            "form_index": str(prim_rec['form_index'].values[0]),
+                            "modif_dts": str(pd.to_datetime(prim_rec['modif_dts'].values[0])),
+                            "stg_ck_event_id": int(prim_rec['ck_event_id']),
+                            "relational_ck_event_ids":  [int(rel_df['ck_event_id'].values[0]),int(rel_df1['ck_event_id'].values[0])],
+                            "confid_score": 1,
+                        }
+                        payload_records.append(payload)
+    return payload_records
