@@ -1,0 +1,30 @@
+    prim_df = LB_V.copy()
+    payload_records = []
+    if prim_df.shape[0] > 0:
+        args_dict = {
+            'p_form_ls': [],
+            'p_visit_ls': [],
+            'logic_text': "((LBTESTCD not in @null_values) and ~(LBTESTCD.isna()) and (LBORRES.str.upper() == 'PENDING'))",
+            'null_values': ['null', 'Null', 'NULL', 'NaN', '', ' ', 'None', 'NaT', 'np.nan', 'nan', None, np.nan]
+        }   
+        p_form_ls = args_dict['p_form_ls']
+        p_visit_ls = args_dict['p_visit_ls']
+        logic_query = args_dict['logic_text']
+        null_values = args_dict['null_values']         
+        prim_df = udf_glbl_filter_by_form_visit(prim_df,p_form_ls,p_visit_ls)
+        if prim_df.shape[0] > 0:
+            prim_df = prim_df.query(logic_query)
+            if len(prim_df) > 0:
+                for prim_ind in prim_df.index.tolist():
+                    prim_rec = prim_df.loc[[prim_ind]]
+                    query_text=udf_glbl_update_querytext(query_text)
+                    payload = {
+                        "query_text": query_text % ((str(prim_rec['LBCAT'].values[0])),str(prim_rec['LBTEST'].values[0])),  # Update the query text here
+                        "form_index": str(prim_rec['form_index'].values[0]),
+                        "modif_dts": str(pd.to_datetime(prim_rec['modif_dts'].values[0])),
+                        "stg_ck_event_id": int(prim_rec['ck_event_id']),
+                        "relational_ck_event_ids": [],
+                        "confid_score": 1,
+                    }
+                    payload_records.append(payload)
+    return payload_records
