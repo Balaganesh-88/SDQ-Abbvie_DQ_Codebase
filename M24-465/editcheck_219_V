@@ -1,0 +1,61 @@
+    payload_records = []
+    prim_df = DOV.copy()
+    sec_df = DM_V.copy()
+    tri_df = LB_V.copy()
+    if prim_df.shape[0] > 0 and sec_df.shape[0] > 0:
+        args_dict = {
+            'p_form_ls': ['DOV'],
+            'p_visit_ls': ['INITIAL CONFINEMENT (DAY -1)', 'DAY 7', 'DAY 22', 'DAY 71', 'PD'],
+            's_form_ls': ['DM_F'],
+            's_visit_ls': [],
+            't_form_ls': [],
+            't_visit_ls': [],
+            'prim_var': 'DCMDATE',
+            'sec_var': 'SEX',
+            'sec_val': 'F',
+            'tri_var': 'LBCAT',
+            'tri_val': 'PREGNANCY',
+            'tri_var1': 'LBTESTCD',
+            'tri_val1': 'HCG',
+            'tri_var2': 'LBORRES',
+            'opr' : '!=',
+            'eqlopr' : '=='
+        }
+        p_form_ls = args_dict['p_form_ls']
+        p_visit_ls = args_dict['p_visit_ls']
+        s_form_ls = args_dict['s_form_ls']
+        s_visit_ls = args_dict['s_visit_ls']
+        t_form_ls = args_dict['t_form_ls']
+        t_visit_ls = args_dict['t_visit_ls']
+        prim_var, sec_var, tri_var = args_dict['prim_var'], args_dict['sec_var'], args_dict['tri_var']
+        sec_val = args_dict['sec_val']
+        tri_var1 = args_dict['tri_var1']
+        tri_val = args_dict['tri_val']
+        tri_var2 = args_dict['tri_var2']
+        tri_val1 = args_dict['tri_val1']
+        opr, eqlopr = args_dict['opr'], args_dict['eqlopr']
+        prim_df = udf_glbl_filter_by_form_visit(prim_df,p_form_ls,p_visit_ls)
+        sec_df = udf_glbl_filter_by_form_visit(sec_df,s_form_ls,s_visit_ls)        
+        if prim_df.shape[0] > 0 and sec_df.shape[0] > 0 :
+            p_flag, prim_df = udf_glbl_null_check(prim_df, prim_var, opr)
+            s_flag, sec_df = udf_glbl_m_f_check(sec_df, sec_var, sec_val, eqlopr)
+            if (p_flag and len(prim_df)>0) and (s_flag and len(sec_df) > 0) and len(prim_df) > 0:
+                t_flag, tri_df = udf_glbl_comparison_check(tri_df, tri_var, tri_val, eqlopr)
+                t_flag, tri_df = udf_glbl_comparison_check(tri_df, tri_var1, tri_val1, eqlopr)
+                t_flag, tri_df = udf_glbl_null_check(tri_df, tri_var2, eqlopr)
+            if prim_df.shape[0] > 0 and sec_df.shape[0] > 0 and (t_flag and len(tri_df)>0) > 0:
+                    for prim_ind in range(prim_df.shape[0]):
+                        prim_rec = prim_df.iloc[[prim_ind]]
+                        ck_event = []
+                        new_df= sec_df.sort_values(by='SPID', ascending=True)
+                        ck_event.append(int(new_df['ck_event_id'].values[0]))
+                        payload = {
+                            "query_text": query_text,  # Update the query text here
+                            "form_index": str(prim_rec['form_index'].values[0]),
+                            "modif_dts": str(pd.to_datetime(prim_rec['modif_dts'].values[0])),
+                            "stg_ck_event_id": int(prim_rec['ck_event_id']),
+                            "relational_ck_event_ids": ck_event,
+                            "confid_score": 1,
+                        }
+                        payload_records.append(payload)
+    return payload_records
